@@ -1,0 +1,5 @@
+node_modules/
+username.json
+logs
+*.log
+npm-debug.log*
