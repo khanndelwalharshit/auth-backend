@@ -4,13 +4,13 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000; 
 const DATA_FILE = "./username.json";
 
 app.use(cors());
 app.use(bodyParser.json());
 
-//  SIGN-UP ROUTE
+// SIGN-UP ROUTE
 app.post("/signup", (req, res) => {
   const { username, password } = req.body;
 
@@ -34,7 +34,7 @@ app.post("/signup", (req, res) => {
   res.json({ message: "User registered successfully" });
 });
 
-//  LOGIN ROUTE
+// LOGIN ROUTE
 app.post("/login", (req, res) => {
   const { username, password } = req.body;
 
@@ -59,6 +59,7 @@ app.post("/login", (req, res) => {
   }
 });
 
+
 app.listen(PORT, () => {
-  console.log(`Backend running on http://localhost:${PORT}`);
+  console.log(` Backend running on port ${PORT}`);
 });
