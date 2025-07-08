@@ -1,78 +1,90 @@
-// server.js
-
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const bodyParser = require("body-parser");
-const jwt = require("jsonwebtoken");
 const { Sequelize } = require("sequelize");
 const User = require("./models/user");
+const jwt = require("jsonwebtoken");
 
 const app = express();
-const PORT = process.env.PORT || 5000;
-
 app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json());
 
-// Connect to DB
-const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
-  process.env.DB_PASSWORD,
-  {
-    host: process.env.DB_HOST,
-    dialect: process.env.DB_DIALECT,
-  }
-);
+// ✅ Sequelize DB Connection using DATABASE_URL from .env
+const sequelize = new Sequelize(process.env.DATABASE_URL, {
+  dialect: "mysql",
+  dialectOptions: {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false,
+    },
+  },
+});
 
-// Test DB connection
+// ✅ Test DB Connection
 sequelize.authenticate()
-  .then(() => console.log("✅ Connected to MySQL database"))
-  .catch(err => console.error("❌ DB connection failed:", err));
+  .then(() => {
+    console.log("✅ DB connected successfully");
+    return sequelize.sync(); // sync models
+  })
+  .then(() => {
+    console.log("✅ Models synced");
+  })
+  .catch((err) => {
+    console.error("❌ DB connection failed:", err);
+  });
 
-// Sync models
-sequelize.sync();
-
-// ======= SIGN-UP =======
+// ✅ Sign-up API
 app.post("/signup", async (req, res) => {
-  const { firstName, lastName, phoneNumber, email, password, confirmPassword } = req.body;
-
-  if (password !== confirmPassword) {
-    return res.status(400).json({ message: "Passwords do not match" });
-  }
+  const { firstName, lastName, phone, email, password } = req.body;
 
   try {
-    const existingUser = await User.findOne({ where: { phoneNumber } });
+    const existingUser = await User.findOne({ where: { phone } });
+
     if (existingUser) {
-      return res.status(400).json({ message: "Phone number already exists" });
+      return res.status(409).json({ error: "Phone number already registered" });
     }
 
-    await User.create({ firstName, lastName, phoneNumber, email, password });
-    res.status(201).json({ message: "User registered successfully" });
+    const newUser = await User.create({
+      firstName,
+      lastName,
+      phone,
+      email,
+      password,
+    });
+
+    const token = jwt.sign({ id: newUser.id }, process.env.JWT_SECRET, {
+      expiresIn: "1d",
+    });
+
+    res.status(201).json({ message: "User created", token });
   } catch (err) {
-    console.error("Signup Error:", err);
-    res.status(500).json({ message: "Signup failed" });
+    res.status(500).json({ error: "Server error", details: err.message });
   }
 });
 
-// ======= LOGIN =======
+// ✅ Login API
 app.post("/login", async (req, res) => {
-  const { phoneNumber, password } = req.body;
+  const { phone, password } = req.body;
 
   try {
-    const user = await User.findOne({ where: { phoneNumber, password } });
-    if (!user) {
-      return res.status(401).json({ message: "Invalid credentials" });
+    const user = await User.findOne({ where: { phone } });
+
+    if (!user || user.password !== password) {
+      return res.status(401).json({ error: "Invalid phone or password" });
     }
 
-    const token = jwt.sign({ id: user.id, phoneNumber: user.phoneNumber }, process.env.JWT_SECRET, { expiresIn: "1h" });
-    res.json({ message: "Login successful", token });
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+      expiresIn: "1d",
+    });
+
+    res.status(200).json({ message: "Login successful", token });
   } catch (err) {
-    console.error("Login Error:", err);
-    res.status(500).json({ message: "Login failed" });
+    res.status(500).json({ error: "Server error", details: err.message });
   }
 });
 
+// ✅ Port listener
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
