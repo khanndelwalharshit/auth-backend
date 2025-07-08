@@ -3,3 +3,6 @@ username.json
 logs
 *.log
 npm-debug.log*
+.env
+node_modules/
+username.json
