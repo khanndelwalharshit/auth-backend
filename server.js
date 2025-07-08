@@ -1,15 +1,10 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const { Sequelize } = require("sequelize");
-const User = require("./models/user");
 const jwt = require("jsonwebtoken");
+const { Sequelize } = require("sequelize");
 
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-// ✅ Sequelize DB Connection using DATABASE_URL from .env
+// ✅ Create Sequelize instance and export it
 const sequelize = new Sequelize(process.env.DATABASE_URL, {
   dialect: "mysql",
   dialectOptions: {
@@ -19,12 +14,20 @@ const sequelize = new Sequelize(process.env.DATABASE_URL, {
     },
   },
 });
+module.exports.sequelize = sequelize;
 
-// ✅ Test DB Connection
+// ✅ Import User model (which uses shared sequelize instance)
+const User = require("./models/user");
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// ✅ Test DB connection
 sequelize.authenticate()
   .then(() => {
     console.log("✅ DB connected successfully");
-    return sequelize.sync(); // sync models
+    return sequelize.sync(); // Sync models
   })
   .then(() => {
     console.log("✅ Models synced");
@@ -83,7 +86,7 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// ✅ Port listener
+// ✅ Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
